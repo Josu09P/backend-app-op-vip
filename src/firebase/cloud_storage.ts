@@ -8,6 +8,8 @@ const storage = new Storage({
   keyFilename: './apikeyfirebase.json',
 });
 
+//volviendo al commit d2fd4b0
+
 const bucket = storage.bucket('notenest-3c0e9.appspot.com');
 
 // 🚀 Subir archivo
