@@ -10,6 +10,21 @@ import { UpdateStockDto } from './dto/update-stock.dto';
 export class StockService {
   constructor(@InjectRepository(Stock) private stockRepo: Repository<Stock>) {}
 
+  async findAll() {
+    return await this.stockRepo.find({
+      relations: ['product'],
+    });
+  }
+
+  async getStockById(id: number): Promise<StockResponseDto> {
+    const stock = await this.stockRepo.findOne({
+      where: { id },
+      relations: ['product'],
+    });
+    if (!stock) throw new NotFoundException('Stock no encontrado');
+    return this.toResponseDto(stock);
+  }
+
   async create(createStockDto: CreateStockDto): Promise<StockResponseDto> {
     const newStock = this.stockRepo.create(createStockDto);
     const savedStock = await this.stockRepo.save(newStock);
@@ -20,7 +35,10 @@ export class StockService {
     id_product: number,
     updateStockDto: UpdateStockDto
   ): Promise<StockResponseDto> {
-    const stock = await this.stockRepo.findOneBy({ id_product });
+    const stock = await this.stockRepo.findOne({
+      where: { id_product },
+      relations: ['product'],
+    });
     if (!stock) throw new NotFoundException('Stock no encontrado');
 
     const updatedStock = await this.stockRepo.save({
@@ -33,7 +51,10 @@ export class StockService {
   }
 
   async getStockByProduct(id_product: number): Promise<StockResponseDto> {
-    const stock = await this.stockRepo.findOneBy({ id_product });
+    const stock = await this.stockRepo.findOne({
+      where: { id_product },
+      relations: ['product'],
+    });
     if (!stock) throw new NotFoundException('Stock no encontrado');
     return this.toResponseDto(stock);
   }
@@ -49,6 +70,12 @@ export class StockService {
       quantity: stock.quantity,
       created_at: stock.created_at,
       updated_at: stock.updated_at,
+      product: stock.product
+        ? {
+            id: stock.product.id,
+            name: stock.product.name,
+          }
+        : undefined,
     };
   }
 }

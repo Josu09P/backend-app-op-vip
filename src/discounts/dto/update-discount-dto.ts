@@ -1,8 +1,9 @@
 import { IsNumber, IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class UpdateDiscountDto {
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
   @IsString()
   @IsOptional()
@@ -12,15 +13,19 @@ export class UpdateDiscountDto {
   @IsOptional()
   slogan?: string;
 
+  @IsOptional()
   @IsNumber()
-  amount: number;
+  amount?: number;
 
+  @IsOptional()
   @IsDateString()
-  startDate: Date;
+  startDate?: Date;
 
+  @IsOptional()
   @IsDateString()
-  endDate: Date;
+  endDate?: Date;
 
+  @IsOptional()
   @IsNumber()
-  productId: number;
+  productId?: number;
 }

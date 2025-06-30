@@ -19,9 +19,15 @@
   "id": "ADMIN",
   "name": "Administrador",
   "image": "https://admin-img.png",
-  "route": "/admin/home"
+  "route": "/admin/dashboard"
 }
 
+{
+  "id": "CLIENT",
+  "name": "Cliente",
+  "image": "https://client-img.png",
+  "route": "/"
+}
 - JSON -> SUPER_ADMIN:
 {
   "id": "SUPER_ADMIN",

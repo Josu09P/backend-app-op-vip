@@ -23,6 +23,13 @@ export class StockController {
 
   @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @Get()
+  getAll() {
+    return this.stockService.findAll(); // Este método aún no está en el servicio, hay que crearlo
+  }
+
+  @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @Post()
   create(@Body() createStockDto: CreateStockDto) {
     return this.stockService.create(createStockDto);
@@ -43,6 +50,13 @@ export class StockController {
   @Get(':id_product')
   get(@Param('id_product', ParseIntPipe) id_product: number) {
     return this.stockService.getStockByProduct(id_product);
+  }
+
+  @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @Get('find/by-id/:id')
+  getById(@Param('id', ParseIntPipe) id: number) {
+    return this.stockService.getStockById(id);
   }
 
   @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)

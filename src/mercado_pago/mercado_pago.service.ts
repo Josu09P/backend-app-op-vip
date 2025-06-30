@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { AxiosError, AxiosResponse } from 'axios';
-import { catchError, map, Observable } from 'rxjs';
+import { catchError, firstValueFrom, map, Observable } from 'rxjs';
 import { identification_type } from './models/identification_type';
 import { MERCADO_PAGO_API, MERCADO_PAGO_HEADERS } from 'src/config/config';
 import { Installment } from './models/installment';
@@ -11,17 +11,24 @@ import { PaymentBody } from './models/payment_body';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from 'src/orders/order.entity';
 import { OrderHasProducts } from 'src/orders/order_has_products.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { PaymentResponse } from './models/payment_response';
+import { Stock } from 'src/stock/stock.entity';
 
 @Injectable()
 export class MercadoPagoService {
   constructor(
     private readonly httpService: HttpService,
+    private dataSource: DataSource,
 
-    @InjectRepository(Order) private ordersRepository: Repository<Order>,
+    @InjectRepository(Order)
+    private ordersRepository: Repository<Order>,
+
     @InjectRepository(OrderHasProducts)
-    private ordersHasProductsRepository: Repository<OrderHasProducts>
+    private ordersHasProductsRepository: Repository<OrderHasProducts>,
+
+    @InjectRepository(Stock)
+    private stockRepository: Repository<Stock> // ✅ Correctamente separado
   ) {}
 
   getIdentificationTypes(): Observable<AxiosResponse<identification_type[]>> {
@@ -63,45 +70,88 @@ export class MercadoPagoService {
       .pipe(map((resp: AxiosResponse<CardTokenResponse>) => resp.data));
   }
 
-  async createPayment(paymentBody: PaymentBody): Promise<Observable<SimplifiedPaymentResponse>> {
-    console.log('Headers recibidos:', MERCADO_PAGO_HEADERS);
-    console.log('paymentBody recibido:', paymentBody);
-
+  async createPayment(paymentBody: PaymentBody): Promise<SimplifiedPaymentResponse> {
     try {
-      // Transacción en la base de datos (en una sola transacción si es posible)
-      const newOrder = this.ordersRepository.create(paymentBody.order);
-      const savedOrder = await this.ordersRepository.save(newOrder);
+      // 1. Extraer datos temporales
+      const orderTemp = paymentBody.order;
+      const orderProducts = paymentBody.order.products;
+      delete paymentBody.order;
 
-      await this.ordersHasProductsRepository.save(
-        paymentBody.order.products.map(product => ({
-          id_order: savedOrder.id,
-          id_product: product.id,
-          quantity: product.quantity,
-        }))
-      );
-      delete paymentBody.order; // Elimina la propiedad 'order'
+      // 2. Validar stock ANTES de pagar
+      for (const product of orderProducts) {
+        const stock = await this.stockRepository.findOne({
+          where: { id_product: product.id },
+        });
 
-      return this.httpService
-        .post(MERCADO_PAGO_API + '/payments', paymentBody, { headers: MERCADO_PAGO_HEADERS })
-        .pipe(
-          map((resp: AxiosResponse<PaymentResponse>) => {
-            console.log('Respuesta completa:', resp.data);
-            return this.simplifyPaymentResponse(resp.data);
-          }),
-          catchError((error: AxiosError) => {
-            console.error('Error:', error.response?.data || error.message);
-            // Manejo de rollback en la BD si falla Mercado Pago
-            //  (Implementa la lógica para revertir las inserciones en la base de datos si la transacción de Mercado Pago falla)
+        if (!stock || stock.quantity < product.quantity) {
+          throw new HttpException(
+            `Stock insuficiente para el producto ${product.id}`,
+            HttpStatus.BAD_REQUEST
+          );
+        }
+      }
 
-            throw new HttpException(
-              error.response?.data || 'Error desconocido',
-              error.response?.status || 500
-            );
+      // 3. Ejecutar el pago
+      const paymentResponse = await firstValueFrom(
+        this.httpService
+          .post(MERCADO_PAGO_API + '/payments', paymentBody, {
+            headers: MERCADO_PAGO_HEADERS,
           })
-        );
+          .pipe(
+            map((resp: AxiosResponse<PaymentResponse>) => resp.data),
+            catchError((error: AxiosError) => {
+              throw new HttpException(
+                error.response?.data || 'Error en pago',
+                error.response?.status || 500
+              );
+            })
+          )
+      );
+
+      // 4. Verificar estado del pago
+      if (paymentResponse.status !== 'approved') {
+        throw new HttpException('El pago no fue aprobado', HttpStatus.BAD_REQUEST);
+      }
+
+      // 5. Crear orden y descontar stock
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        const newOrder = this.ordersRepository.create(orderTemp);
+        const savedOrder = await queryRunner.manager.save(Order, newOrder);
+
+        for (const product of orderProducts) {
+          const stock = await queryRunner.manager.findOne(Stock, {
+            where: { id_product: product.id },
+          });
+
+          // Aquí ya no necesitas volver a validar stock, solo descontarlo.
+          stock.quantity -= product.quantity;
+          stock.updated_at = new Date();
+          await queryRunner.manager.save(Stock, stock);
+
+          const relation = this.ordersHasProductsRepository.create({
+            id_order: savedOrder.id,
+            id_product: product.id,
+            quantity: product.quantity,
+          });
+
+          await queryRunner.manager.save(OrderHasProducts, relation);
+        }
+
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
+      }
+
+      return this.simplifyPaymentResponse(paymentResponse);
     } catch (error) {
-      console.error('Error creating payment:', error);
-      throw new HttpException('Error al procesar el pago', 500);
+      throw error;
     }
   }
 

@@ -4,4 +4,8 @@ export class StockResponseDto {
   quantity: number;
   created_at: Date;
   updated_at: Date | null;
+  product?: {
+    id: number;
+    name: string;
+  };
 }
