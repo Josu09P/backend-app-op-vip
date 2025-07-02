@@ -8,6 +8,7 @@ import {
   Put,
   UseGuards,
   Delete,
+  Request,
 } from '@nestjs/common';
 import { StockService } from './stock.service';
 import { HasRoles } from 'src/auth/jwt/has-roles';
@@ -30,6 +31,13 @@ export class StockController {
 
   @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
+  @Get(':id_product/movements')
+  getMovements(@Param('id_product', ParseIntPipe) id_product: number) {
+    return this.stockService.getMovementsByProduct(id_product);
+  }
+
+  @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @Post()
   create(@Body() createStockDto: CreateStockDto) {
     return this.stockService.create(createStockDto);
@@ -40,9 +48,13 @@ export class StockController {
   @Put(':id_product')
   update(
     @Param('id_product', ParseIntPipe) id_product: number,
-    @Body() updateStockDto: UpdateStockDto
+    @Body() updateStockDto: UpdateStockDto,
+    @Request() req: any
   ) {
-    return this.stockService.updateQuantity(id_product, updateStockDto);
+    return this.stockService.updateQuantity(id_product, {
+      ...updateStockDto,
+      user_id: req.user.userId,
+    });
   }
 
   @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)

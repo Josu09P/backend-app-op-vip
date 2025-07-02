@@ -1,4 +1,4 @@
-import { IsInt, IsOptional } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 
 export class UpdateStockDto {
   @IsInt()
@@ -6,6 +6,7 @@ export class UpdateStockDto {
   id_product?: number;
 
   @IsInt()
+  @Min(0)
   @IsOptional()
   quantity?: number;
 }
