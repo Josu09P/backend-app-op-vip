@@ -33,6 +33,11 @@ export class CategoriesController {
     return this.CategoriesService.findAll();
   }
 
+  @Get('with-children')
+  getWithChildren() {
+    return this.CategoriesService.getCategoriesWithChildren();
+  }
+
   @Get(':id')
   findById(@Param('id', ParseIntPipe) id: number) {
     return this.CategoriesService.findById(id);

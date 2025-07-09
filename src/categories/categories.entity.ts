@@ -1,4 +1,14 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+// categories.entity.ts
+import {
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+} from 'typeorm';
 
 @Entity({ name: 'categories' })
 export class Category {
@@ -11,12 +21,22 @@ export class Category {
   @Column()
   description: string;
 
-  @Column()
+  @Column({ nullable: true })
   image: string;
 
-  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  @ManyToOne(() => Category, category => category.children, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'parent_id' })
+  parent: Category;
+
+  @OneToMany(() => Category, category => category.parent)
+  children: Category[];
+
+  @CreateDateColumn()
   created_at: Date;
 
-  @Column({ type: 'datetime', nullable: true })
-  updated_at: Date | null;
+  @UpdateDateColumn()
+  updated_at: Date;
 }
