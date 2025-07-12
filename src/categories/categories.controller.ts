@@ -27,22 +27,22 @@ import { UpdateCategoriesDto } from './dto/update-categories.dto';
 @Controller('categories')
 export class CategoriesController {
   constructor(private CategoriesService: CategoriesService) {}
-
+  // LIST ALL CATEGORIES
   @Get()
-  findAll() {
+  findAllCategory() {
     return this.CategoriesService.findAll();
   }
-
+  // FIND CATEGORY BY ID
   @Get(':id')
   findById(@Param('id', ParseIntPipe) id: number) {
     return this.CategoriesService.findById(id);
   }
-
+  // CREATE CATEGORIES
   @HasRoles(JwtRole.ADMIN)
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @Post()
   @UseInterceptors(FileInterceptor('file'))
-  createWithImage(
+  createCategory(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -57,11 +57,12 @@ export class CategoriesController {
     return this.CategoriesService.create(file, category);
   }
 
+  // UPDATE CATEGORIES
   @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @Put(':id')
   @UseInterceptors(FileInterceptor('file'))
-  update(
+  updateCategory(
     @Param('id', ParseIntPipe) id: number,
     @Body() category: UpdateCategoriesDto,
     @UploadedFile() file?: Express.Multer.File
@@ -83,6 +84,7 @@ export class CategoriesController {
     }
   }
 
+  // DELETE CATEGORIES
   @HasRoles(JwtRole.ADMIN, JwtRole.SUPER_ADMIN)
   @UseGuards(JwtAuthGuard, JwtRolesGuard)
   @Delete(':id')
