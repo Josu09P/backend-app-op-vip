@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, IsInt } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateCategoriesDto {
   @IsNotEmpty()
@@ -8,10 +8,6 @@ export class CreateCategoriesDto {
   @IsNotEmpty()
   @IsString()
   description: string;
-
-  @IsOptional()
-  @IsInt()
-  parent?: number;
 
   image: string;
 }

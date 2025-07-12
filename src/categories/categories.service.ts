@@ -15,15 +15,6 @@ export class CategoriesService {
     return this.categoriesRepository.find();
   }
 
-  // LIST WITH CHILDREN
-  getCategoriesWithChildren(): Promise<Category[]> {
-    return this.categoriesRepository.find({
-      where: { parent: null },
-      relations: ['children'],
-      order: { name: 'ASC' },
-    });
-  }
-
   async findById(id: number): Promise<Category> {
     const category = await this.categoriesRepository.findOneBy({ id });
     if (!category) {
@@ -33,18 +24,14 @@ export class CategoriesService {
   }
 
   // CREATE
-  async create(file: Express.Multer.File, dto: CreateCategoriesDto) {
+  async create(file: Express.Multer.File, category: CreateCategoriesDto) {
     const url = await storage.uploadFile(file, 'categories');
     if (!url) {
       throw new HttpException('La imagen no se pudo guardar', HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
-    const category = this.categoriesRepository.create({
-      ...dto,
-      image: url,
-      parent: dto.parent ? { id: dto.parent } : null,
-    });
-    return this.categoriesRepository.save(category);
+    category.image = url;
+    const newCategory = this.categoriesRepository.create(category);
+    return this.categoriesRepository.save(newCategory);
   }
 
   // UPDATE sin imagen
